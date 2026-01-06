@@ -1,0 +1,172 @@
+[
+  {
+    "id": 1,
+    "name": "Rucolasalat von Christina",
+    "kategorie": "Salate",
+    "unterkategorie": "Vegetarisch",
+    "emoji": "🥗",
+    "zutaten": [
+      "Eine Mango",
+      "Ein Becher Mini Mozzarella",
+      "Eine Avocado",
+      "Ein kleiner Beutel Pinienkerne",
+      "Ein Päckchen Rucola",
+      "Dressing: 5 Halm Schnittlauch, 1 EL Senf, 2 EL Honig, 1 EL Essig, 5 EL Öl, Salz & Pfeffer"
+    ],
+    "zubereitung": [
+      "Mango, Avocado und Mozzarella klein schneiden.",
+      "Rucola waschen und in eine Schüssel geben.",
+      "Pinienkerne ohne Öl in der Pfanne kurz anrösten.",
+      "Alle Dressing-Zutaten vermischen und über den Salat geben.",
+      "Mit den Pinienkernen garnieren."
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Rahmgeschnetzeltes mit Spätzle",
+    "kategorie": "Hauptgang",
+    "unterkategorie": "Fleisch",
+    "emoji": "🥘",
+    "zutaten": [
+      "2 Zwiebeln",
+      "10g Öl",
+      "500g Schweinegeschnetzeltes",
+      "300g frische Champignons",
+      "35g Tomatenmark",
+      "35g Mehl",
+      "2 EL Sojasoße",
+      "1.5 TL Brühepulver",
+      "1 TL Salz & etwas Pfeffer",
+      "230g warmes Wasser",
+      "200g Sahne"
+    ],
+    "zubereitung": [
+      "Zwiebeln zerkleinern (5 Sek./St. 5).",
+      "10g Öl hinzufügen und dünsten (3 Min./Varoma/St. 1).",
+      "Fleisch abtupfen, zugeben und garen (4 Min./Varoma/Linkslauf).",
+      "Pilze und Tomatenmark zugeben (10 Min./100°/Linkslauf).",
+      "Mehl drüberstreuen und kurz rühren (2 Min./100°/Linkslauf).",
+      "Restliche Zutaten zugeben und kochen (25 Min./100°/Linkslauf/St. 1).",
+      "Abschmecken und mit Spätzle oder Reis servieren."
+    ]
+  }
+]
+[
+  {
+    "id": 1,
+    "name": "Rucolasalat",
+    "kategorie": "Salate",
+    "dauer": "15",
+    "emoji": "🥗",
+    "zutaten": ["Zutat A", "Zutat B"],
+    "zubereitung": ["Schritt 1", "Schritt 2"]
+  },
+  {
+    "id": 2,
+    "name": "Gefüllte Paprika",
+    "kategorie": "Hauptgang",
+    "dauer": "30",
+    "emoji": "🍳",
+    "zutaten": ["Paprika", "Feta"],
+    "zubereitung": ["Waschen", "Füllen"]
+  }
+]
+[
+  {
+    "id": 1767723543681,
+    "name": "Gefüllte Paprika mit Feta",
+    "kategorie": "Salate",
+    "dauer": "15",
+    "zutaten": [
+      "Gegrillte Paprika (im Glas) 2-3 Gläser ",
+      "Feta oder Weichkäse ca. 500-600g"
+    ],
+    "zubereitung": [
+      "Beides in mundgerechte Stücke schneiden. ",
+      "Die Paprika mit Feta befühlen. ",
+      "Dressing: ",
+      "Olivenöl ca. 150ml",
+      "mit 1-2 Päckchen Paprika Fix Krönung ",
+      "Das Dressing über die Paprika drüber und mit frischen Kräutern (Lauch, Dill, Petersilie)",
+      "bedecken. "
+    ],
+    "emoji": "🍳"
+  },
+  {
+    "id": 1767725596607,
+    "name": "Das Budwig Müsli",
+    "kategorie": "Hauptgang",
+    "dauer": "10",
+    "zutaten": [
+      "100 Gram mager Quark",
+      "2 Esslöffel Leinsamen frisch geschrotet ",
+      "2 Esslöffel gehackte Mandeln und Nüsse (keine Erdnüsse)",
+      "3 Esslöffel Lein Öl",
+      "3 Esslöffel Milch",
+      "1 telöffel Honig",
+      "Frische bio Früchte"
+    ],
+    "zubereitung": [
+      "Alles cremig rühren"
+    ],
+    "emoji": "🍳"
+  }
+]
+[
+  {
+    "id": 1,
+    "name": "Rucolasalat von Christina",
+    "kategorie": "Salate",
+    "dauer": "15 Min.",
+    "emoji": "🥗",
+    "zutaten": [
+      "Eine Mango",
+      "Ein Becher Mini Mozzarella",
+      "Eine Avocado",
+      "Ein kleiner Beutel Pinienkerne",
+      "Ein Päckchen Rucola",
+      "5 Halm Schnittlauch",
+      "1 EL mittelscharfer Senf",
+      "2 EL flüssiger Honig",
+      "1 EL Essig (heller Aceto Balsamico)",
+      "5 EL Olivenöl",
+      "Salz & Pfeffer"
+    ],
+    "zubereitung": [
+      "Mango und Avocado würfeln, Mozzarella abtropfen lassen.",
+      "Pinienkerne in einer Pfanne ohne Fett goldbraun rösten.",
+      "Rucola waschen und trockenschütteln.",
+      "Für das Dressing Schnittlauch hacken und mit Senf, Honig, Essig und Öl verrühren. Mit Salz und Pfeffer abschmecken.",
+      "Alle Zutaten in einer Schüssel vermengen und servieren."
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Rahmgeschnetzeltes mit Spätzle",
+    "kategorie": "Hauptgang",
+    "dauer": "45 Min.",
+    "emoji": "🥘",
+    "zutaten": [
+      "2 Zwiebeln",
+      "10g Öl",
+      "500g Schweinegeschnetzeltes",
+      "300g frische Champignons",
+      "35g Tomatenmark",
+      "35g Mehl",
+      "2 EL Sojasoße",
+      "1.5 TL Brühepulver",
+      "1 TL Salz & etwas Pfeffer",
+      "230g warmes Wasser",
+      "200g Sahne"
+    ],
+    "zubereitung": [
+      "Zwiebeln zerkleinern (5 Sek./St. 5).",
+      "Öl hinzufügen und dünsten (3 Min./Varoma/St. 1).",
+      "Fleisch abtupfen, zugeben und garen (4 Min./Varoma/Linkslauf).",
+      "Pilze und Tomatenmark zugeben (10 Min./100°/Linkslauf).",
+      "Mehl drüberstreuen und kurz rühren (2 Min./100°/Linkslauf).",
+      "Restliche Zutaten zugeben und kochen (25 Min./100°/Linkslauf/St. 1).",
+      "Mit Spätzle oder Reis servieren."
+    ]
+  }
+]
