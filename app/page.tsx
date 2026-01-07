@@ -42,29 +42,6 @@ export default function Home() {
 
   useEffect(() => { loadRezepte(); }, []);
 
-  const exportToWord = (rezept: any) => {
-    const dateiname = `${rezept.name.replace(/\s+/g, '_')}.doc`;
-    const inhalt = `
-      <html xmlns:office="urn:schemas-microsoft-com:office:office" xmlns:word="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"></head>
-      <body style="font-family: Arial, sans-serif; padding: 20px;">
-        <h1 style="color: #db2777;">${rezept.emoji || '🍳'} ${rezept.name}</h1>
-        <p><b>Kategorie:</b> ${rezept.kategorie} | <b>Dauer:</b> ${rezept.dauer} | <b>Portionen:</b> ${portionen}</p>
-        <h2 style="color: #ea580c;">Zutaten:</h2>
-        <ul>${rezept.zutaten.map((z: string) => `<li>${berechneMenge(z)}</li>`).join('')}</ul>
-        <h2 style="color: #2563eb;">Zubereitung:</h2>
-        <ol>${rezept.zubereitung.map((s: string) => `<li>${s}</li>`).join('')}</ol>
-        <p style="font-size: 10px; color: #999; margin-top: 50px;">Exportiert aus Chef Maya</p>
-      </body>
-      </html>
-    `;
-    const blob = new Blob(['\ufeff', inhalt], { type: 'application/msword' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = dateiname;
-    link.click();
-  };
-
   const rezeptSpeichern = async () => {
     if (!form.name) return alert("Bitte Namen eingeben!");
     try {
@@ -139,12 +116,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center sm:py-10 text-gray-800 font-sans">
       <main className="w-full max-w-md bg-white min-h-screen shadow-2xl sm:rounded-3xl overflow-hidden flex flex-col relative">
-        <div className="bg-pink-200 pt-6 pb-4 flex flex-col items-center justify-center shrink-0 shadow-sm">
-            <h1 className="font-bold text-pink-900 text-3xl tracking-tight">Chef Maya</h1>
-            <p className="text-[10px] font-bold text-pink-700 uppercase tracking-[0.2em] mt-1">
-              {alleRezepte.length} Rezepte in deiner Sammlung
-            </p>
-        </div>
+        <div className="bg-pink-200 h-20 flex items-center justify-center shrink-0 font-bold text-pink-900 text-3xl shadow-sm tracking-tight">Chef Maya</div>
 
         <div className="p-4 border-b flex flex-col items-center gap-3 bg-white sticky top-0 z-10">
           {(activeCategory || selectedRezept || isAdding) ? (
@@ -152,8 +124,7 @@ export default function Home() {
               <button onClick={() => { setSelectedRezept(null); setIsAdding(false); setEditingId(null); if(!selectedRezept) setActiveCategory(null); setCheckedZutaten([]); setPortionen(1); }} className="font-bold text-gray-400">← Zurück</button>
               {selectedRezept && (
                 <div className="flex gap-2">
-                  <button onClick={() => exportToWord(selectedRezept)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold uppercase">Word</button>
-                  <button onClick={() => starteBearbeiten(selectedRezept)} className="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold uppercase">Stift</button>
+                  <button onClick={() => starteBearbeiten(selectedRezept)} className="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold">STIFT</button>
                 </div>
               )}
             </div>
@@ -219,6 +190,7 @@ export default function Home() {
                   <div className="grid grid-cols-2 gap-3">
                     {['Salate', 'Hauptgang', 'Nachtisch', 'Alle'].map(kat => (
                       <div key={kat} onClick={() => setActiveCategory(kat)} className="bg-gray-50 p-6 rounded-3xl flex flex-col items-center justify-center border border-gray-100 shadow-sm cursor-pointer hover:bg-orange-50 transition active:scale-95">
+                        {/* ICONS UM 25% VERGRÖSSERT auf text-5xl */}
                         <span className="text-5xl mb-2">{kat === 'Salate' ? '🥗' : kat === 'Hauptgang' ? '🍗' : kat === 'Nachtisch' ? '🍰' : '👀'}</span>
                         <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider">{kat}</span>
                       </div>
@@ -247,3 +219,4 @@ export default function Home() {
     </div>
   );
 }
+
