@@ -1,226 +1,241 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import rezepteVorgabe from './rezepte.json';
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBu8cgTpB5ltHvWX7eDv4pOfCpYY5s23Ds",
+  authDomain: "chef-maya.firebaseapp.com",
+  projectId: "chef-maya",
+  storageBucket: "chef-maya.firebasestorage.app",
+  messagingSenderId: "996277631686",
+  appId: "1:996277631686:web:6b7aea75c3eae02e8ab5c7",
+  measurementId: "G-PSYNRE463E"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedRezept, setSelectedRezept] = useState<any | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showBackup, setShowBackup] = useState(false);
-  const [copyStatus, setCopyStatus] = useState('Kopieren');
-  
   const [alleRezepte, setAlleRezepte] = useState<any[]>([]);
-
-  useEffect(() => {
-    const gespeicherteRezepte = localStorage.getItem('meineRezepte');
-    const eigeneRezepte = gespeicherteRezepte ? JSON.parse(gespeicherteRezepte) : [];
-    setAlleRezepte([...rezepteVorgabe, ...eigeneRezepte]);
-  }, []);
+  const [checkedZutaten, setCheckedZutaten] = useState<string[]>([]);
+  const [portionen, setPortionen] = useState(1);
 
   const [form, setForm] = useState({
-    name: '', kategorie: 'Hauptgang', dauer: '', zutaten: '', zubereitung: '', emoji: '🍳'
+    name: '', kategorie: 'Hauptgang', dauer: '', zutaten: '', zubereitung: '', emoji: '🍳', sterne: 0
   });
+
+  const loadRezepte = async () => {
+    try {
+      const q = query(collection(db, "rezepte"), orderBy("name", "asc"));
+      const querySnapshot = await getDocs(q);
+      const daten = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAlleRezepte(daten);
+    } catch (e) { console.error("Fehler beim Laden:", e); }
+  };
+
+  useEffect(() => { loadRezepte(); }, []);
+
+  const exportToWord = (rezept: any) => {
+    const dateiname = `${rezept.name.replace(/\s+/g, '_')}.doc`;
+    const inhalt = `
+      <html xmlns:office="urn:schemas-microsoft-com:office:office" xmlns:word="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: Arial, sans-serif; padding: 20px;">
+        <h1 style="color: #db2777;">${rezept.emoji || '🍳'} ${rezept.name}</h1>
+        <p><b>Kategorie:</b> ${rezept.kategorie} | <b>Dauer:</b> ${rezept.dauer} | <b>Portionen:</b> ${portionen}</p>
+        <h2 style="color: #ea580c;">Zutaten:</h2>
+        <ul>${rezept.zutaten.map((z: string) => `<li>${berechneMenge(z)}</li>`).join('')}</ul>
+        <h2 style="color: #2563eb;">Zubereitung:</h2>
+        <ol>${rezept.zubereitung.map((s: string) => `<li>${s}</li>`).join('')}</ol>
+        <p style="font-size: 10px; color: #999; margin-top: 50px;">Exportiert aus Chef Maya</p>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\ufeff', inhalt], { type: 'application/msword' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = dateiname;
+    link.click();
+  };
+
+  const rezeptSpeichern = async () => {
+    if (!form.name) return alert("Bitte Namen eingeben!");
+    try {
+      const data = {
+        ...form,
+        zutaten: form.zutaten.split('\n').filter(z => z.trim()),
+        zubereitung: form.zubereitung.split('\n').filter(s => s.trim())
+      };
+      if (editingId) {
+        await updateDoc(doc(db, "rezepte", editingId), data);
+      } else {
+        await addDoc(collection(db, "rezepte"), data);
+      }
+      setIsAdding(false); setEditingId(null);
+      setForm({ name: '', kategorie: 'Hauptgang', dauer: '', zutaten: '', zubereitung: '', emoji: '🍳', sterne: 0 });
+      await loadRezepte();
+    } catch (e) { alert("Fehler beim Speichern"); }
+  };
+
+  const bewertungSetzen = async (rezept: any, anzahl: number) => {
+    try {
+      const rezeptRef = doc(db, "rezepte", rezept.id);
+      await updateDoc(rezeptRef, { sterne: anzahl });
+      setSelectedRezept({ ...rezept, sterne: anzahl });
+      await loadRezepte();
+    } catch (e) { console.error("Bewertung fehlgeschlagen", e); }
+  };
+
+  const zeigeZufallsRezept = () => {
+    const aktiveRezepte = alleRezepte.filter(r => r.kategorie !== 'Sonstiges');
+    if (aktiveRezepte.length > 0) {
+      const zufall = aktiveRezepte[Math.floor(Math.random() * aktiveRezepte.length)];
+      setSelectedRezept(zufall);
+      setCheckedZutaten([]);
+      setPortionen(1);
+    }
+  };
+
+  const toggleZutat = (zutat: string) => {
+    setCheckedZutaten(prev => 
+      prev.includes(zutat) ? prev.filter(z => z !== zutat) : [...prev, zutat]
+    );
+  };
+
+  const berechneMenge = (text: string) => {
+    if (portionen === 1) return text;
+    return text.replace(/([0-9]+[.,]?[0-9]*)/g, (match) => {
+      const zahl = parseFloat(match.replace(',', '.'));
+      if (isNaN(zahl)) return match;
+      const neueZahl = (zahl * portionen).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+      return neueZahl;
+    });
+  };
 
   const starteBearbeiten = (rezept: any) => {
     setForm({
-      name: rezept.name,
-      kategorie: rezept.kategorie,
-      dauer: rezept.dauer,
-      zutaten: rezept.zutaten.join('\n'),
-      zubereitung: rezept.zubereitung.join('\n'),
-      emoji: rezept.emoji || '🍳'
+      name: rezept.name, kategorie: rezept.kategorie, dauer: rezept.dauer,
+      zutaten: rezept.zutaten.join('\n'), zubereitung: rezept.zubereitung.join('\n'), 
+      emoji: rezept.emoji || '🍳', sterne: rezept.sterne || 0
     });
-    setEditingId(rezept.id);
-    setIsAdding(true);
-    setSelectedRezept(null);
+    setEditingId(rezept.id); setIsAdding(true); setSelectedRezept(null);
   };
 
-  const rezeptSpeichern = () => {
-    if (!form.name) return alert("Bitte einen Namen eingeben");
-
-    const formatierte = {
-      id: editingId || Date.now(),
-      ...form,
-      zutaten: form.zutaten.split('\n').filter(z => z.trim()),
-      zubereitung: form.zubereitung.split('\n').filter(s => s.trim())
-    };
-
-    let eigeneRezepte = JSON.parse(localStorage.getItem('meineRezepte') || '[]');
-    if (editingId) {
-      eigeneRezepte = eigeneRezepte.map((r: any) => r.id === editingId ? formatierte : r);
-    } else {
-      eigeneRezepte.push(formatierte);
-    }
-    
-    localStorage.setItem('meineRezepte', JSON.stringify(eigeneRezepte));
-    setAlleRezepte([...rezepteVorgabe, ...eigeneRezepte]);
-    setIsAdding(false);
-    setEditingId(null);
-    setSearchTerm('');
-    setForm({ name: '', kategorie: 'Hauptgang', dauer: '', zutaten: '', zubereitung: '', emoji: '🍳' });
-  };
-
-  // Funktion für den neuen Kopier-Button
-  const kopiereInZwischenablage = () => {
-    const text = JSON.stringify(JSON.parse(localStorage.getItem('meineRezepte') || '[]'), null, 2);
-    navigator.clipboard.writeText(text).then(() => {
-      setCopyStatus('Kopiert! ✓');
-      setTimeout(() => setCopyStatus('Kopieren'), 2000);
-    });
-  };
-
-  const gefilterteRezepte = alleRezepte.filter(r => 
-    r.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const SterneAnzeige = ({ anzahl, interaktiv = false, rezept = null }: { anzahl: number, interaktiv?: boolean, rezept?: any }) => (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <span key={s} onClick={() => interaktiv && rezept && bewertungSetzen(rezept, s)} className={`text-xl ${interaktiv ? 'cursor-pointer' : ''} ${s <= anzahl ? 'text-yellow-400' : 'text-gray-300'}`}>★</span>
+      ))}
+    </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 flex justify-center sm:py-10 font-sans text-gray-800">
-      <main className="w-full max-w-md bg-white min-h-screen sm:min-h-[800px] shadow-2xl sm:rounded-3xl overflow-hidden relative flex flex-col">
-        
-        {/* HEADER */}
-        <div className="bg-pink-200 w-full h-24 flex items-center justify-center shrink-0 relative">
-          <h1 className="text-pink-900 text-3xl font-bold font-serif tracking-wide">Chef Maya</h1>
-          {!activeCategory && !selectedRezept && !isAdding && (
-            <button 
-              onClick={() => setShowBackup(true)}
-              className="absolute right-4 bg-pink-300 text-pink-900 px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm active:scale-90 transition"
-            >
-              BACKUP
-            </button>
-          )}
+    <div className="min-h-screen bg-gray-100 flex justify-center sm:py-10 text-gray-800 font-sans">
+      <main className="w-full max-w-md bg-white min-h-screen shadow-2xl sm:rounded-3xl overflow-hidden flex flex-col relative">
+        <div className="bg-pink-200 pt-6 pb-4 flex flex-col items-center justify-center shrink-0 shadow-sm">
+            <h1 className="font-bold text-pink-900 text-3xl tracking-tight">Chef Maya</h1>
+            <p className="text-[10px] font-bold text-pink-700 uppercase tracking-[0.2em] mt-1">
+              {alleRezepte.length} Rezepte in deiner Sammlung
+            </p>
         </div>
 
-        {/* BACKUP MODAL MIT KOPIERBUTTON */}
-        {showBackup && (
-          <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
-            <div className="bg-white w-full rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in duration-200">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-lg">Datensicherung</h2>
-                <button 
-                  onClick={kopiereInZwischenablage}
-                  className="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold active:scale-95 transition"
-                >
-                  {copyStatus}
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-500 leading-tight">
-                Klicke auf Kopieren und füge den Text am Ende deiner <strong>rezepte.json</strong> ein.
-              </p>
-              <textarea 
-                readOnly 
-                value={JSON.stringify(JSON.parse(localStorage.getItem('meineRezepte') || '[]'), null, 2)} 
-                className="w-full h-48 p-3 bg-gray-50 rounded-xl font-mono text-[10px] outline-none border border-gray-100"
-              />
-              <button onClick={() => setShowBackup(false)} className="w-full bg-orange-500 text-white p-3 rounded-xl font-bold">Schließen</button>
-            </div>
-          </div>
-        )}
-
-        {/* NAVIGATION & SUCHE */}
-        <div className="p-5 flex flex-col items-center border-b bg-white relative shrink-0 gap-4">
+        <div className="p-4 border-b flex flex-col items-center gap-3 bg-white sticky top-0 z-10">
           {(activeCategory || selectedRezept || isAdding) ? (
-            <div className="w-full flex items-center justify-between">
-              <button 
-                onClick={() => { setSelectedRezept(null); if(!selectedRezept) { setActiveCategory(null); setIsAdding(false); setEditingId(null); }}} 
-                className="text-gray-600 flex items-center gap-2 font-bold text-xl transition active:scale-90"
-              >
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Zurück
-              </button>
-              {selectedRezept && !rezepteVorgabe.find(r => r.id === selectedRezept.id) && (
-                <button onClick={() => starteBearbeiten(selectedRezept)} className="bg-gray-100 p-2 rounded-xl text-gray-400 active:scale-90"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+            <div className="w-full flex justify-between h-10 items-center">
+              <button onClick={() => { setSelectedRezept(null); setIsAdding(false); setEditingId(null); if(!selectedRezept) setActiveCategory(null); setCheckedZutaten([]); setPortionen(1); }} className="font-bold text-gray-400">← Zurück</button>
+              {selectedRezept && (
+                <div className="flex gap-2">
+                  <button onClick={() => exportToWord(selectedRezept)} className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold uppercase">Word</button>
+                  <button onClick={() => starteBearbeiten(selectedRezept)} className="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold uppercase">Stift</button>
+                </div>
               )}
             </div>
           ) : (
             <>
-              <div className="relative w-full max-w-[320px]">
-                <input type="text" placeholder="Rezept suchen..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-gray-700 focus:ring-2 focus:ring-orange-500 outline-none shadow-inner text-sm" />
-                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" placeholder="Rezepte suchen..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-sm border border-gray-100" />
+              <div className="flex gap-2 w-full">
+                <button onClick={() => setIsAdding(true)} className="bg-orange-500 text-white p-3 rounded-xl font-bold flex-1 shadow-lg transition active:scale-95 text-sm">+ Rezept</button>
+                <button onClick={zeigeZufallsRezept} className="bg-pink-500 text-white p-3 rounded-xl font-bold flex-1 shadow-lg transition active:scale-95 text-sm">🎲 Zufall</button>
               </div>
-              <button onClick={() => setIsAdding(true)} className="bg-orange-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl w-full max-w-[280px] justify-center flex items-center gap-3 transition active:scale-95"><span className="text-2xl">+</span> Rezept hinzufügen</button>
             </>
           )}
         </div>
 
-        <div className="p-6 pt-4 flex-1 overflow-y-auto">
-          {/* HIER DIE LOGIK FÜR LISTE / KACHELN / DETAILS AUS DEM VORHERIGEN SCHRITT EINFÜGEN */}
+        <div className="p-5 flex-1 overflow-y-auto pb-10">
           {isAdding ? (
-            <div className="space-y-4 animate-in fade-in">
-              <h2 className="font-bold border-b pb-2 text-lg">{editingId ? "Rezept bearbeiten" : "Neues Rezept"}</h2>
-              <input value={form.name} placeholder="Name" className="w-full p-3 bg-gray-50 rounded-xl ring-1 ring-gray-200 outline-none" onChange={e => setForm({...form, name: e.target.value})} />
+            <div className="space-y-3 animate-in fade-in">
+              <input value={form.name} placeholder="Name" className="w-full p-3 border rounded-xl" onChange={e => setForm({...form, name: e.target.value})} />
               <div className="flex gap-2">
-                <select value={form.kategorie} className="flex-1 p-3 bg-gray-50 rounded-xl ring-1 ring-gray-200 outline-none" onChange={e => setForm({...form, kategorie: e.target.value})}>
-                  <option>Hauptgang</option><option>Salate</option><option>Nachtisch</option>
-                </select>
-                <input value={form.dauer} placeholder="Dauer" className="flex-1 p-3 bg-gray-50 rounded-xl ring-1 ring-gray-200 outline-none" onChange={e => setForm({...form, dauer: e.target.value})} />
+                <select value={form.kategorie} className="flex-1 p-3 border rounded-xl bg-white text-sm" onChange={e => setForm({...form, kategorie: e.target.value})}><option>Hauptgang</option><option>Salate</option><option>Nachtisch</option><option>Sonstiges</option></select>
+                <input value={form.dauer} placeholder="Dauer" className="flex-1 p-3 border rounded-xl text-sm" onChange={e => setForm({...form, dauer: e.target.value})} />
               </div>
-              <textarea value={form.zutaten} placeholder="Zutaten..." rows={3} className="w-full p-3 bg-gray-50 rounded-xl ring-1 ring-gray-200" onChange={e => setForm({...form, zutaten: e.target.value})} />
-              <textarea value={form.zubereitung} placeholder="Zubereitung..." rows={3} className="w-full p-3 bg-gray-50 rounded-xl ring-1 ring-gray-200" onChange={e => setForm({...form, zubereitung: e.target.value})} />
-              <button onClick={rezeptSpeichern} className="w-full bg-green-500 text-white p-4 rounded-xl font-bold shadow-lg">{editingId ? "Änderungen speichern" : "Direkt Speichern"}</button>
+              <textarea value={form.zutaten} placeholder="Zutaten (eine pro Zeile)..." rows={6} className="w-full p-3 border rounded-xl text-sm" onChange={e => setForm({...form, zutaten: e.target.value})} />
+              <textarea value={form.zubereitung} placeholder="Zubereitung..." rows={6} className="w-full p-3 border rounded-xl text-sm" onChange={e => setForm({...form, zubereitung: e.target.value})} />
+              <button onClick={rezeptSpeichern} className="w-full bg-green-500 text-white p-4 rounded-xl font-bold shadow-md">Speichern</button>
             </div>
           ) : selectedRezept ? (
-            <div className="animate-in fade-in duration-300 space-y-6 pb-10">
-              <div className="text-center">
-                <span className="text-6xl block mb-2">{selectedRezept.emoji || '🍳'}</span>
+            <div className="space-y-5 animate-in slide-in-from-bottom">
+              <div className="text-center space-y-2">
+                <span className="text-5xl">{selectedRezept.emoji || '🍳'}</span>
                 <h2 className="text-2xl font-bold leading-tight">{selectedRezept.name}</h2>
-                <p className="text-gray-400 text-xs mt-1 font-medium">🕒 {selectedRezept.dauer}</p>
+                <div className="flex justify-center"><SterneAnzeige anzahl={selectedRezept.sterne || 0} interaktiv={true} rezept={selectedRezept} /></div>
+                <div className="flex items-center justify-center gap-3 mt-4 bg-gray-50 w-fit mx-auto px-4 py-2 rounded-2xl border border-gray-100">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portionen:</span>
+                  <button onClick={() => setPortionen(Math.max(1, portionen - 1))} className="text-orange-500 font-bold text-xl px-2">-</button>
+                  <span className="font-bold text-sm w-4">{portionen}</span>
+                  <button onClick={() => setPortionen(portionen + 1)} className="text-orange-500 font-bold text-xl px-2">+</button>
+                </div>
+                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-2">🕒 {selectedRezept.dauer}</p>
               </div>
-              <div className="bg-orange-50 rounded-3xl p-5 border border-orange-100">
-                <h3 className="font-bold text-orange-800 mb-3 uppercase text-[10px] tracking-widest">Zutaten</h3>
-                <ul className="space-y-2.5">
+              <div className="bg-orange-50 p-5 rounded-3xl border border-orange-100 shadow-sm">
+                <h3 className="font-bold text-orange-800 text-[10px] mb-3 uppercase tracking-widest">Checkliste: Zutaten</h3>
+                <div className="space-y-3">
                   {selectedRezept.zutaten.map((z:string, i:number) => (
-                    <li key={i} className="flex items-start gap-3 text-gray-700 text-sm">
-                      <div className="w-5 h-5 border-2 border-orange-200 rounded-lg shrink-0 mt-0.5"/>
-                      {z}
-                    </li>
+                    <div key={i} onClick={() => toggleZutat(z)} className={`flex items-center gap-3 cursor-pointer transition ${checkedZutaten.includes(z) ? 'opacity-30' : ''}`}>
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center ${checkedZutaten.includes(z) ? 'bg-orange-500 border-orange-500' : 'bg-white border-orange-200'}`}>{checkedZutaten.includes(z) && <span className="text-white text-xs">✓</span>}</div>
+                      <span className={`text-sm ${checkedZutaten.includes(z) ? 'line-through' : ''}`}>{berechneMenge(z)}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
-              <div className="bg-blue-50 rounded-3xl p-5 border border-blue-100">
-                <h3 className="font-bold text-blue-800 mb-4 uppercase text-[10px] tracking-widest">Zubereitung</h3>
+              <div className="bg-blue-50 p-5 rounded-3xl border border-blue-100 shadow-sm text-sm">
+                <h3 className="font-bold text-blue-800 mb-3 uppercase text-[10px] tracking-widest">Zubereitung</h3>
                 {selectedRezept.zubereitung.map((s:string, i:number) => (
-                  <div key={i} className="flex gap-4 mb-5 last:mb-0">
-                    <span className="bg-blue-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 shadow-sm">{i+1}</span>
-                    <p className="text-gray-700 text-sm leading-relaxed">{s}</p>
-                  </div>
+                  <div key={i} className="mb-4 flex gap-3 leading-relaxed"><span className="font-bold text-blue-500 shrink-0">{i+1}.</span><p>{s}</p></div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              {searchTerm ? (
-                <div className="space-y-2">
-                  <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Suchergebnisse</h2>
-                  {gefilterteRezepte.map(r => (
-                    <div key={r.id} onClick={() => {setSelectedRezept(r); setSearchTerm('');}} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-orange-50 transition">
-                      <span className="text-3xl">{r.emoji || '🍳'}</span>
-                      <div className="font-bold text-sm text-gray-800">{r.name}</div>
-                      <div className="ml-auto text-gray-300">›</div>
-                    </div>
-                  ))}
-                </div>
-              ) : !activeCategory ? (
-                <div className="flex flex-wrap justify-center gap-4 py-4">
-                  {['Salate', 'Hauptgang', 'Nachtisch', 'Alle'].map((kat) => (
-                    <div key={kat} onClick={() => setActiveCategory(kat)} className="bg-gray-50 w-40 h-40 p-4 rounded-3xl flex flex-col items-center justify-center border border-gray-100 shadow-sm cursor-pointer hover:bg-orange-50 transition active:scale-95">
-                      <span className="text-5xl mb-2">{kat === 'Salate' ? '🥗' : kat === 'Hauptgang' ? '🍗' : kat === 'Nachtisch' ? '🍰' : '👀'}</span>
-                      <span className="font-bold text-gray-600 text-[11px] uppercase tracking-widest">{kat}</span>
-                    </div>
-                  ))}
-                </div>
+            <div className="flex flex-col gap-4">
+              {!activeCategory ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['Salate', 'Hauptgang', 'Nachtisch', 'Alle'].map(kat => (
+                      <div key={kat} onClick={() => setActiveCategory(kat)} className="bg-gray-50 p-6 rounded-3xl flex flex-col items-center justify-center border border-gray-100 shadow-sm cursor-pointer hover:bg-orange-50 transition active:scale-95">
+                        <span className="text-5xl mb-2">{kat === 'Salate' ? '🥗' : kat === 'Hauptgang' ? '🍗' : kat === 'Nachtisch' ? '🍰' : '👀'}</span>
+                        <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider">{kat}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end pr-1"><div onClick={() => setActiveCategory('Sonstiges')} className="bg-gray-100 px-4 py-2 rounded-xl flex items-center gap-2 border border-gray-200 cursor-pointer opacity-60 hover:opacity-100 transition active:scale-95"><span className="text-sm">📦</span><span className="font-bold text-gray-500 text-[9px] uppercase tracking-widest">Sonstiges</span></div></div>
+                </>
               ) : (
-                <div className="space-y-3 animate-in slide-in-from-right duration-300">
-                  <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">{activeCategory}</h2>
+                <div className="space-y-2 animate-in fade-in">
+                  <div className="flex justify-between items-end mb-2 px-1"><h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{activeCategory}</h3><span className="text-[10px] text-gray-300">{alleRezepte.filter(r => (activeCategory === 'Alle' ? r.kategorie !== 'Sonstiges' : r.kategorie === activeCategory)).length} Rezepte</span></div>
                   {alleRezepte
-                    .filter(r => activeCategory === 'Alle' || r.kategorie === activeCategory)
+                    .filter(r => (activeCategory === 'Alle' ? r.kategorie !== 'Sonstiges' : r.kategorie === activeCategory))
+                    .filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()))
                     .map(r => (
-                      <div key={r.id} onClick={() => setSelectedRezept(r)} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-orange-50 transition active:scale-[0.98]">
-                        <span className="text-3xl">{r.emoji || '🍳'}</span>
-                        <div className="font-bold text-sm text-gray-800">{r.name}</div>
-                        <div className="ml-auto text-gray-300">›</div>
+                      <div key={r.id} onClick={() => { setSelectedRezept(r); setCheckedZutaten([]); setPortionen(1); }} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer active:bg-orange-50 transition">
+                        <div className="flex flex-col"><span className="font-bold text-sm">{r.name}</span><div className="flex items-center gap-2"><span className="text-[10px] text-gray-400">{r.dauer}</span><div className="scale-75 origin-left"><SterneAnzeige anzahl={r.sterne || 0} /></div></div></div>
+                        <span className="text-gray-200">›</span>
                       </div>
                     ))}
                 </div>
